@@ -1,11 +1,13 @@
           python3 - <<EOF
           import json
           try:
-              # Membaca data dari API MyRepublic
               with open('raw_data.json') as f:
                   data = json.load(f)
               
-              # Header KML dengan Style Warna Ungu MyRepublic
+              # Pastikan polygon tertutup (titik akhir = titik awal)
+              if data[0] != data[-1]:
+                  data.append(data[0])
+
               header = """<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
 <Document>
@@ -18,7 +20,7 @@
     <styleUrl>#mrAir</styleUrl>
     <Polygon><outerBoundaryIs><LinearRing><coordinates>"""
 
-              # Format koordinat yang benar adalah lng,lat,0
+              # Format koordinat: lng,lat,0
               coords_list = " ".join([f"{p[0]},{p[1]},0" for p in data])
               
               footer = """</coordinates></LinearRing></outerBoundaryIs></Polygon>
