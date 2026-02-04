@@ -1,33 +1,41 @@
 name: Auto Update Coverage KML
 
 on:
-  workflow_dispatch: # Baris ini yang akan memunculkan tombol 'Run workflow'
+  workflow_dispatch: # Baris ini WAJIB ada agar tombol muncul di tab Actions
 
 jobs:
-  generate:
+  build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Create KML
+      - name: Ambil Kode
+        uses: actions/checkout@v3
+
+      - name: Jalankan Generator
         run: |
+          # Ambil data dari API MyRepublic
           curl -s "https://sapiderman.myrepublic.net.id/api/v1/air/coverage-data" > raw_data.json
+          
+          # Jalankan skrip Python untuk membuat file KML
           python3 - <<EOF
           import json
           try:
               with open('raw_data.json') as f:
                   data = json.load(f)
-              if data[0] != data[-1]: data.append(data[0])
+              if data[0] != data[-1]:
+                  data.append(data[0])
               header = '<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><Style id="m"><PolyStyle><color>4D6C2D91</color></PolyStyle></Style><Placemark><styleUrl>#m</styleUrl><Polygon><outerBoundaryIs><LinearRing><coordinates>'
               coords = " ".join([f"{p[0]},{p[1]},0" for p in data])
               footer = '</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark></Document></kml>'
               with open('coverage_live.kml', 'w') as out:
                   out.write(header + coords + footer)
-          except Exception as e: print(e)
+          except Exception as e:
+              print(f"Error: {e}")
           EOF
-      - name: Save File
+
+      - name: Simpan ke Github
         run: |
-          git config --global user.name "bot"
-          git config --global user.email "bot@github.com"
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
           git add coverage_live.kml
-          git commit -m "Update KML" || exit 0
+          git commit -m "Update peta otomatis" || exit 0
           git push
