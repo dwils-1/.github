@@ -1,0 +1,44 @@
+name: Generate Google Maps KML
+on:
+  schedule:
+    - cron: '0 0 * * *' # Update otomatis setiap tengah malam
+  workflow_dispatch: # Tombol manual untuk update kapan saja
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Fetch API and Convert
+        run: |
+          # Ambil data dari API (Ganti URL jika ada link API yang lebih spesifik)
+          curl -s "https://sapiderman.myrepublic.net.id/api/v1/air/coverage-data" > data.json
+          
+          # Gunakan Python untuk membuat file KML
+          python3 - <<EOF
+          import json
+          try:
+              with open('data.json') as f:
+                  data = json.load(f)
+              
+              # Header KML dengan gaya warna Ungu MyRepublic
+              kml = ['<?xml version="1.0" encoding="UTF-8"?>', '<kml xmlns="http://www.opengis.net/kml/2.2">', '<Document>', '<name>Coverage Sragen</name>', '<Style id="purple"><PolyStyle><color>4D6C2D91</color></PolyStyle></Style>', '<Placemark>', '<styleUrl>#purple</styleUrl>', '<Polygon><outerBoundaryIs><LinearRing><coordinates>']
+              
+              # Masukkan koordinat [lng, lat]
+              coords = " ".join([f"{p[0]},{p[1]},0" for p in data])
+              kml.append(coords)
+              
+              kml.extend(['</coordinates></LinearRing></outerBoundaryIs></Polygon>', '</Placemark>', '</Document>', '</kml>'])
+              
+              with open('sragen_live.kml', 'w') as f:
+                  f.write("".join(kml))
+          except Exception as e:
+              print(f"Error: {e}")
+          EOF
+      - name: Push to Repository
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+          git add sragen_live.kml
+          git commit -m "Update coverage map via API" || exit 0
+          git push
