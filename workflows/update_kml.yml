@@ -1,9 +1,11 @@
           python3 - <<EOF
           import json
           try:
+              # Membaca data dari API MyRepublic
               with open('raw_data.json') as f:
                   data = json.load(f)
               
+              # Header KML dengan Style Warna Ungu MyRepublic
               header = """<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
 <Document>
