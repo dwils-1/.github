@@ -1,35 +1,74 @@
+name: Auto Update Coverage KML
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Berjalan otomatis setiap tengah malam
+  workflow_dispatch: # Tombol manual untuk update kapan saja
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Fetch API and Generate KML
+        run: |
+          # Ambil data terbaru dari API MyRepublic
+          curl -s "https://sapiderman.myrepublic.net.id/api/v1/air/coverage-data" > raw_data.json
+          
           python3 - <<EOF
           import json
           try:
               with open('raw_data.json') as f:
                   data = json.load(f)
               
-              # Pastikan polygon tertutup (titik akhir = titik awal)
+              # Memastikan area tertutup (titik akhir = titik awal) agar tampil di Google Maps
               if data[0] != data[-1]:
                   data.append(data[0])
 
               header = """<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
-<Document>
-  <Style id="mrAir">
-    <PolyStyle><color>4D6C2D91</color><fill>1</fill><outline>1</outline></PolyStyle>
-    <LineStyle><color>FF6C2D91</color><width>2</width></LineStyle>
-  </Style>
-  <Placemark>
+  <Document>
     <name>Coverage Sragen Live</name>
-    <styleUrl>#mrAir</styleUrl>
-    <Polygon><outerBoundaryIs><LinearRing><coordinates>"""
+    <Style id="mrPurple">
+      <PolyStyle>
+        <color>4D6C2D91</color> <fill>1</fill>
+        <outline>1</outline>
+      </PolyStyle>
+      <LineStyle>
+        <color>FF6C2D91</color> <width>2</width>
+      </LineStyle>
+    </Style>
+    <Placemark>
+      <name>Area Jangkauan Aktif</name>
+      <styleUrl>#mrPurple</styleUrl>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>"""
 
               # Format koordinat: lng,lat,0
               coords_list = " ".join([f"{p[0]},{p[1]},0" for p in data])
               
-              footer = """</coordinates></LinearRing></outerBoundaryIs></Polygon>
-  </Placemark>
-</Document>
+              footer = """</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+  </Document>
 </kml>"""
-
+          
               with open('coverage_live.kml', 'w') as out:
                   out.write(header + coords_list + footer)
           except Exception as e:
               print(f"Error: {e}")
           EOF
+
+      - name: Commit and Push
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+          git add coverage_live.kml
+          git commit -m "Automated KML update from API" || exit 0
+          git push
