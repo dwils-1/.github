@@ -1,21 +1,18 @@
 name: Auto Update Coverage KML
 
 on:
-  workflow_dispatch: # Baris ini WAJIB ada agar tombol muncul di tab Actions
+  workflow_dispatch: # BARIS INI WAJIB ADA AGAR TOMBOL MUNCUL
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Ambil Kode
+      - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Jalankan Generator
+      - name: Generate KML
         run: |
-          # Ambil data dari API MyRepublic
           curl -s "https://sapiderman.myrepublic.net.id/api/v1/air/coverage-data" > raw_data.json
-          
-          # Jalankan skrip Python untuk membuat file KML
           python3 - <<EOF
           import json
           try:
@@ -32,10 +29,10 @@ jobs:
               print(f"Error: {e}")
           EOF
 
-      - name: Simpan ke Github
+      - name: Save Result
         run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "github-actions@github.com"
+          git config --global user.name "bot"
+          git config --global user.email "bot@github.com"
           git add coverage_live.kml
-          git commit -m "Update peta otomatis" || exit 0
+          git commit -m "Update KML" || exit 0
           git push
