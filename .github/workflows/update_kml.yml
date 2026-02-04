@@ -1,46 +1,74 @@
 name: Auto Update Coverage KML
 
 on:
-  workflow_dispatch: # Tombol manual wajib
+  schedule:
+    - cron: '0 0 * * *' # Jalan tiap jam 00:00 UTC
+  workflow_dispatch:      # Tombol manual
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Ambil Kode
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Generate KML
+      - name: Ambil Data API (Mode Penyamaran)
         run: |
-          curl -s "https://sapiderman.myrepublic.net.id/api/v1/air/coverage-data" > raw_data.json
+          # Kita gunakan curl dengan User-Agent Chrome agar tidak diblokir
+          curl -s \
+          -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
+          -H "Referer: https://myrepublic.co.id/" \
+          -H "Origin: https://myrepublic.co.id" \
+          "https://sapiderman.myrepublic.net.id/api/v1/air/coverage-data" > raw_data.json
+          
+          # Cek apakah file berhasil didownload (Debug)
+          echo "Cek isi 100 karakter pertama data:"
+          head -c 100 raw_data.json
+
+      - name: Proses ke KML
+        run: |
           python3 - <<EOF
           import json
+          import sys
+
           try:
-              with open('raw_data.json') as f:
-                  data = json.load(f)
-              # Tutup polygon
-              if data[0] != data[-1]:
-                  data.append(data[0])
+              with open('raw_data.json', 'r') as f:
+                  content = f.read()
+                  
+              # Cek jika data kosong atau HTML error
+              if not content.strip() or "<html" in content.lower():
+                  print("GAGAL: API menolak akses atau URL salah.")
+                  sys.exit(1)
+
+              data = json.loads(content)
               
-              # Header KML
+              # Logika pembuatan KML
               header = '<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>MyRepublic Coverage</name><Style id="m"><PolyStyle><color>4D6C2D91</color><outline>1</outline></PolyStyle><LineStyle><color>FF6C2D91</color><width>2</width></LineStyle></Style><Placemark><styleUrl>#m</styleUrl><Polygon><outerBoundaryIs><LinearRing><coordinates>'
               
-              # Isi Koordinat
-              coords = " ".join([f"{p[0]},{p[1]},0" for p in data])
-              
-              # Footer KML
-              footer = '</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark></Document></kml>'
-              
-              with open('coverage_live.kml', 'w') as out:
-                  out.write(header + coords + footer)
+              # Pastikan data adalah list koordinat
+              if isinstance(data, list) and len(data) > 0:
+                  # Tutup polygon jika perlu
+                  if data[0] != data[-1]:
+                      data.append(data[0])
+                  
+                  coords = " ".join([f"{p[0]},{p[1]},0" for p in data])
+                  footer = '</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark></Document></kml>'
+                  
+                  with open('coverage_live.kml', 'w') as out:
+                      out.write(header + coords + footer)
+                  print("BERHASIL: File KML tercipta.")
+              else:
+                  print("GAGAL: Format JSON tidak sesuai ekspektasi.")
+                  sys.exit(1)
+
           except Exception as e:
-              print(f"Error: {e}")
+              print(f"ERROR PYTHON: {e}")
+              sys.exit(1)
           EOF
 
-      - name: Simpan Hasil
+      - name: Simpan ke GitHub
         run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "github-actions@github.com"
+          git config --global user.name "bot"
+          git config --global user.email "bot@github.com"
           git add coverage_live.kml
-          git commit -m "Update peta otomatis" || exit 0
+          git commit -m "Update dari Official API" || exit 0
           git push
