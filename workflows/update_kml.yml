@@ -1,15 +1,13 @@
 name: Auto Update Coverage KML
 
 on:
-  workflow_dispatch: # BARIS INI WAJIB ADA AGAR TOMBOL MUNCUL
+  workflow_dispatch: # Baris wajib agar tombol 'Run workflow' muncul
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
+      - uses: actions/checkout@v3
       - name: Generate KML
         run: |
           curl -s "https://sapiderman.myrepublic.net.id/api/v1/air/coverage-data" > raw_data.json
@@ -18,18 +16,15 @@ jobs:
           try:
               with open('raw_data.json') as f:
                   data = json.load(f)
-              if data[0] != data[-1]:
-                  data.append(data[0])
+              if data[0] != data[-1]: data.append(data[0])
               header = '<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><Style id="m"><PolyStyle><color>4D6C2D91</color></PolyStyle></Style><Placemark><styleUrl>#m</styleUrl><Polygon><outerBoundaryIs><LinearRing><coordinates>'
               coords = " ".join([f"{p[0]},{p[1]},0" for p in data])
               footer = '</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark></Document></kml>'
               with open('coverage_live.kml', 'w') as out:
                   out.write(header + coords + footer)
-          except Exception as e:
-              print(f"Error: {e}")
+          except Exception as e: print(e)
           EOF
-
-      - name: Save Result
+      - name: Save to Repository
         run: |
           git config --global user.name "bot"
           git config --global user.email "bot@github.com"
