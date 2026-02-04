@@ -1,7 +1,7 @@
 name: Auto Update Coverage KML
 
 on:
-  workflow_dispatch: # Ini akan memunculkan tombol 'Run workflow' manual
+  workflow_dispatch: # Agar tombol 'Run workflow' muncul
 
 jobs:
   build:
