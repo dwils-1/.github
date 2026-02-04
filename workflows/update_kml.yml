@@ -1,14 +1,14 @@
 name: Auto Update Coverage KML
+
 on:
-  schedule:
-    - cron: '0 0 * * *'
-  workflow_dispatch:
+  workflow_dispatch: # Ini akan memunculkan tombol 'Run workflow' manual
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Fetch and Generate
+      - name: Generate KML
         run: |
           curl -s "https://sapiderman.myrepublic.net.id/api/v1/air/coverage-data" > raw_data.json
           python3 - <<EOF
@@ -18,21 +18,20 @@ jobs:
                   data = json.load(f)
               if data[0] != data[-1]: data.append(data[0])
               header = """<?xml version="1.0" encoding="UTF-8"?>
-<kml xmlns="http://www.opengis.net/kml/2.2">
-<Document>
-  <Style id="mrAir"><PolyStyle><color>4D6C2D91</color></PolyStyle></Style>
-  <Placemark><styleUrl>#mrAir</styleUrl><Polygon><outerBoundaryIs><LinearRing><coordinates>"""
+          <kml xmlns="http://www.opengis.net/kml/2.2">
+          <Document>
+            <Style id="mrAir"><PolyStyle><color>4D6C2D91</color></PolyStyle></Style>
+            <Placemark><styleUrl>#mrAir</styleUrl><Polygon><outerBoundaryIs><LinearRing><coordinates>"""
               coords = " ".join([f"{p[0]},{p[1]},0" for p in data])
-              footer = """</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>
-</Document></kml>"""
+              footer = """</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark></Document></kml>"""
               with open('coverage_live.kml', 'w') as out:
                   out.write(header + coords + footer)
           except Exception as e: print(e)
           EOF
       - name: Push KML
         run: |
-          git config --global user.name "GitHub Action"
-          git config --global user.email "action@github.com"
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
           git add coverage_live.kml
           git commit -m "Update KML" || exit 0
           git push
